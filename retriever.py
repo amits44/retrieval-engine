@@ -19,8 +19,8 @@ def get_retriever()-> VectorStoreRetriever:
         embedding_function= embeddings,
     )
     retriever = vectorstore.as_retriever(
-        search_type = "similarity_score_threshold",
-        search_kwargs = {"k": TOP_K, "score_threshold": SCORE_THRESHOLD},
+        search_type = "similarity",
+        search_kwargs = {"k": TOP_K,},
     )
     return retriever
 retriever = get_retriever()

@@ -5,6 +5,7 @@ from langsmith import Client
 from dotenv import load_dotenv
 import os
 from pathlib import Path
+from langchain_core.messages import HumanMessage
 import uuid
 
 load_dotenv()
@@ -83,7 +84,6 @@ if st.sidebar.button("Index Documents"):
         except Exception as e:
             st.sidebar.error(f"Error: {str(e)}")
 
-
 # chat interface
 
 st.title("C-RAG Research Assistant")
@@ -96,14 +96,9 @@ for message in st.session_state['chat_threads'][current_thread_id]:
     with st.chat_message(message['role']):
         st.markdown(message['content'])
 
-query = st.chat_input("Ask a research question...")
+query = st.chat_input("Ask a question...")
 
 if query:
-    # 1. Immediately show the user's message in the UI and save it
-    st.session_state['chat_threads'][current_thread_id].append({"role": "user", "content": query})
-    if len(st.session_state['chat_threads'][current_thread_id]) == 1:
-        short_title = query[:15] + "..." if len(query) > 15 else query
-        st.session_state['thread_titles'][current_thread_id] = short_title
     with st.chat_message("user"):
         st.markdown(query)
 
@@ -111,11 +106,19 @@ if query:
     with st.chat_message("assistant"):
         with st.spinner("Researching your question..."):
             try:
-                # Passing the thread_id config to LangGraph (if you add a checkpointer later, this is required)
+                from langchain_core.messages import HumanMessage
+                
+                # Passing the thread_id config to LangGraph
                 config = {"configurable": {"thread_id": current_thread_id}}
                 
                 # Invoke the graph
-                result = app.invoke({"question": query, "retry_count": 0}, config=config)
+                result = app.invoke(
+                    {
+                        "messages": [HumanMessage(content=query)], 
+                        "retry_count": 0
+                    }, 
+                    config=config
+                )
                 
                 # Get LangSmith run ID
                 runs = list(ls_client.list_runs(
@@ -143,12 +146,20 @@ if query:
                 if result.get("web_fallback"):
                     st.info("Web search was used to supplement document knowledge")
 
-                # 3. Save the assistant's answer to the Streamlit UI history
+
+                # 3 successful, save both messages to history
+                st.session_state['chat_threads'][current_thread_id].append({"role": "user", "content": query})
                 st.session_state['chat_threads'][current_thread_id].append({"role": "assistant", "content": answer})
+                
+                # 4 If this is the first successful pair in the chat, update the title!
+                if len(st.session_state['chat_threads'][current_thread_id]) == 2:
+                    short_title = query[:25] + "..." if len(query) > 25 else query
+                    st.session_state['thread_titles'][current_thread_id] = short_title
 
             except FileNotFoundError:
                 st.error("No vector database found. Please upload documents and click 'Index Documents' in the sidebar.")
             except Exception as e:
+                # If it fails, the error shows, but nothing is saved to history!
                 st.error(f"An error occurred: {str(e)}")
 
 
