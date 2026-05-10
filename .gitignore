@@ -1,1 +1,20 @@
 .env
+
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# ChromaDB generated storage
+chroma_db/
+*.sqlite3
+
+# Local databases
+*.db
+*.db-shm
+*.db-wal
+
+# OS/editor files
+.DS_Store
+.vscode/
