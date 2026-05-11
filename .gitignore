@@ -7,6 +7,7 @@ __pycache__/
 *.pyc
 
 # ChromaDB generated storage
+docs/
 chroma_db/
 *.sqlite3
 
