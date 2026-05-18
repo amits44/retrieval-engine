@@ -1,5 +1,4 @@
 from langchain_core.prompts import ChatPromptTemplate
-#from langchain_ollama import ChatOllama
 from langchain_groq import ChatGroq
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
@@ -8,10 +7,9 @@ load_dotenv()
 
 llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
 
-class GradeDocuments(BaseModel):
-    binary_score: str = Field(description="'yes' or 'no'")
+class RelevanceGrade(BaseModel):
+    binary_score: str = Field(description="'yes' if releant otherwise 'no'")
 
-grader_llm = llm.with_structured_output(GradeDocuments)
 relevance_prompt = ChatPromptTemplate.from_messages([
     ("system", 
      "You are a research document relevance grader. Evaluate if a document contains information "
@@ -22,9 +20,9 @@ relevance_prompt = ChatPromptTemplate.from_messages([
      "Output 'yes' if relevant, 'no' if not."),
     ("human", "Research Question: {question}\n\nDocument Excerpt: {document}"),
 ])
-relevance_grader = relevance_prompt| grader_llm
+relevance_grader = relevance_prompt| llm.with_structured_output(RelevanceGrade)
 
-class GradeHallucination(BaseModel):
+class HallucinationGrade(BaseModel):
     binary_score: str = Field(description="'yes' if grounded, 'no' if hallucinating")
 
 hallucination_grader = ChatPromptTemplate.from_messages([
@@ -33,9 +31,9 @@ hallucination_grader = ChatPromptTemplate.from_messages([
      "fully grounded in the provided documents. If the answer makes claims not supported "
      "by the documents, output 'no'. If all claims are supported, output 'yes'."),
     ("human", "Source Documents: {documents}\n\nGenerated Answer: {generation}"),
-]) | llm.with_structured_output(GradeHallucination)
+]) | llm.with_structured_output(HallucinationGrade)
 
-class AnswerGrader(BaseModel):
+class AnswerGrade(BaseModel):
     binary_score: str = Field(description= "'yes' if the answer directly resolves the research question, 'no',if it does not resolves the user question ")
 
 AnswerGrader = ChatPromptTemplate.from_messages([
@@ -44,4 +42,4 @@ AnswerGrader = ChatPromptTemplate.from_messages([
      "An adequate answer should be comprehensive, specific, and directly relevant. "
      "Output 'yes' or 'no'."),
     ("human", "Research Question: {question}\n\nGenerated Answer: {generation}"),
-]) | llm.with_structured_output(AnswerGrader)
+]) | llm.with_structured_output(AnswerGrade)
