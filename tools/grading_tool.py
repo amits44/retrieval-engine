@@ -21,3 +21,14 @@ def verify_grounding(documents:str, generation:str)-> str:
         "generation": generation
     })
     return result.binary_score
+
+@tool
+def verify_answer_quality(question:str, generation:str)-> str:
+    """
+    Evaluate if the generated answer adequately addresses the research question.
+    """
+    result = answer_grader.invoke({
+        "question": question,
+        "generation": generation
+    })
+    return result.binary_score
