@@ -1,20 +1,23 @@
 from state import GraphState
-from chains import relevance_grader, hallucination_grader, AnswerGrader
+from chains import relevance_grader, hallucination_grader, answer_grader
 from retriever import retriever
-#from langchain_community.tools.tavily_search import TavilySearchResults
 from langsmith import traceable
-from langchain_tavily import TavilySearch
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-#from langchain_ollama import ChatOllama
 from langchain_core.messages import AIMessage, trim_messages
 from langchain_groq import ChatGroq
 from langchain_core.documents import Document
+from tools.retrieval_tool import semantic_search
+from tools.web_search_tool import web_search
+from tools.grading_tool import grade_document_relevance, verify_grounding, verify_answer_quality
 from dotenv import load_dotenv
 load_dotenv()
 
-web_search_tool = TavilySearch(max_results=3)
+#---------LLM------------
+
 llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
+
+#---------RAG generation chain-----------
 
 rag_prompt = ChatPromptTemplate.from_messages([
     ("system",
@@ -29,33 +32,45 @@ rag_prompt = ChatPromptTemplate.from_messages([
 ])
 rag_chain = rag_prompt | llm | StrOutputParser()
 
-@traceable(name="vector store retrieval")
-def retrieve(state: GraphState) -> GraphState:
-    current_question= state["messages"][-1].content
-    docs = retriever.invoke(current_question)
+#---------Retrieve Node---------
+
+def retrieve_node(state: GraphState):
+    question= state["messages"][-1].content
+    docs = semantic_search.invoke(question)
     return {"documents": docs}
 
-def graded_documents(state: GraphState) -> GraphState:
-    filtered, needs_web =[], False
+#------------Grade Document Node-----------
+
+def grade_documents_node(state: GraphState):
+    question= state["messages"][-1].content
+    filtered_docs =[]
+    needs_web_search =False
     for doc in state["documents"]:
-        score = relevance_grader.invoke({"question": state["messages"][-1].content, "document": doc.page_content})
-        if score.binary_score == "yes":
-            filtered.append(doc)
+        score = grade_document_relevance.invoke({"question": question, "document": doc.page_content})
+        if score == "yes":
+            filtered_docs.append(doc)
         else:
-            needs_web = True
-    return {"documents": filtered, "web_fallback": needs_web or len(filtered) == 0}
+            needs_web_search = True
+    if len(filtered_docs) == 0:
+        needs_web_search = True
+    return {
+        "documents": filtered_docs,
+        "needs_web_search": needs_web_search
+    }
 
-def web_search(state:GraphState) -> GraphState:
-    search_output = web_search_tool.invoke({"query": state["messages"][-1].content})
+
+#------------Web Search Node-----------
+
+def web_search_node(state:GraphState):
+    question= state["messages"][-1].content
+    web_docs = web_search.invoke(question)
     
-    if isinstance(search_output, dict) and "results" in search_output:
-        results_list = search_output["results"]
-    else:
-        results_list = search_output
-    web_docs = [Document(page_content=r["content"]) for r in results_list]
-    return {"documents": state["documents"] + web_docs}
+    combines_docs = state["documents"]+ web_docs
+    return {"documents": combined_docs}
 
-def generate(state:GraphState)-> GraphState:
+#------------Generation Node-----------
+
+def generate_node(state:GraphState):
     context = "\n\n".join([doc.page_content for doc in state["documents"]])
     trimmed_history = trim_messages(
         state["messages"],
@@ -64,11 +79,27 @@ def generate(state:GraphState)-> GraphState:
         strategy="last"    
     )
     generation = rag_chain.invoke({"context": context, "messages": trimmed_history})
-    return {"generation": generation,"messages":[AIMessage(content=generation)]}
+    return {
+        "generation": generation,
+        "messages":[AIMessage(content=generation)]
+    }
 
-def check_hallucination(state: GraphState) -> GraphState:
+#------------Hallucination Check Node-----------
+
+def hallucination_check_node(state: GraphState):
+    question = state["messages"][-1].content
     docs_text ="\n\n".join([doc.page_content for doc in state["documents"]])
-    h_score = hallucination_grader.invoke({"documents": docs_text, "generation": state["generation"]})
-    a_score = AnswerGrader.invoke({"question": state["messages"][-1].content, "generation": state["generation"]})
-    is_good = h_score.binary_score == "yes" and a_score.binary_score == "yes"
-    return{"hallucination": not is_good}
+
+    grounding_score = verify_grounding.invoke({
+        "documents": docs_text,
+        "generation": state["generation"]
+    })
+    answer_score = verify_answer_quality.invoke({
+        "question": question,
+        "generation": state["generation"]
+    })
+    hallucination_detected = not(
+        grounding_score == "yes"
+        and answer_score == "yes"
+    )
+    return{"hallucination": hallucination_detected}
