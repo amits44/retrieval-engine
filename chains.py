@@ -10,7 +10,7 @@ llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
 class RelevanceGrade(BaseModel):
     binary_score: str = Field(description="'yes' if releant otherwise 'no'")
 
-relevance_prompt = ChatPromptTemplate.from_messages([
+relevance_grader = ChatPromptTemplate.from_messages([
     ("system", 
      "You are a research document relevance grader. Evaluate if a document contains information "
      "relevant to answering the research question. Consider:\n"
@@ -19,8 +19,7 @@ relevance_prompt = ChatPromptTemplate.from_messages([
      "- Related findings or data\n"
      "Output 'yes' if relevant, 'no' if not."),
     ("human", "Research Question: {question}\n\nDocument Excerpt: {document}"),
-])
-relevance_grader = relevance_prompt| llm.with_structured_output(RelevanceGrade)
+])| llm.with_structured_output(RelevanceGrade) 
 
 class HallucinationGrade(BaseModel):
     binary_score: str = Field(description="'yes' if grounded, 'no' if hallucinating")
@@ -36,7 +35,7 @@ hallucination_grader = ChatPromptTemplate.from_messages([
 class AnswerGrade(BaseModel):
     binary_score: str = Field(description= "'yes' if the answer directly resolves the research question, 'no',if it does not resolves the user question ")
 
-AnswerGrader = ChatPromptTemplate.from_messages([
+answer_grader = ChatPromptTemplate.from_messages([
         ("system", 
      "Evaluate if this answer adequately addresses the research question. "
      "An adequate answer should be comprehensive, specific, and directly relevant. "
