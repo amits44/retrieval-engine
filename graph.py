@@ -7,12 +7,11 @@ from nodes import (
     generate_node,
     hallucination_check_node)
 import sqlite3
-from langgraph.checkpoint.sqlite import SqliteSaver
+from langgraph.checkpoint.memory import InMemorySaver
 
 #---------------sqlite checkpointer--------------
 
-conn = sqlite3.connect("chat_history.db", check_same_thread=False)
-saver = SqliteSaver(conn)
+memory = InMemorySaver()
 
 #--------------routing function---------------------
 
@@ -44,10 +43,5 @@ workflow.add_edge("web_search", "generate")
 workflow.add_edge("generate", "hallucination_check")
 workflow.add_conditional_edges("hallucination_check", route_after_hallucination_check)
 
-app = workflow.compile(checkpointer = saver)
+app = workflow.compile(checkpointer = memory)
 
-def retrieve_thread():
-    all_threads = set()
-    for checkpoint in saver.list(None):
-        all_threads.add(checkpoint.config['configurable']['thread_id'])
-    return list(all_threads)
