@@ -122,7 +122,7 @@ if query:
                 
                 # Get LangSmith run ID
                 runs = list(ls_client.list_runs(
-                    project_name="crag-research-assistant", 
+                    project_name="Research assistant", 
                     limit=1,
                     is_root=True,
                 ))
