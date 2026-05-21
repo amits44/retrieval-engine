@@ -1,5 +1,5 @@
 from state import GraphState
-from chains import relevance_grader, hallucination_grader, answer_grader
+#from chains import relevance_grader, hallucination_grader, answer_grader
 from retriever import retriever
 from langsmith import traceable
 from langchain_core.output_parsers import StrOutputParser
@@ -55,7 +55,7 @@ def grade_documents_node(state: GraphState):
         needs_web_search = True
     return {
         "documents": filtered_docs,
-        "needs_web_search": needs_web_search
+        "web_fallback": needs_web_search
     }
 
 
@@ -65,7 +65,7 @@ def web_search_node(state:GraphState):
     question= state["messages"][-1].content
     web_docs = web_search.invoke(question)
     
-    combines_docs = state["documents"]+ web_docs
+    combined_docs = state["documents"]+ web_docs
     return {"documents": combined_docs}
 
 #------------Generation Node-----------
