@@ -1,12 +1,14 @@
 from langchain.tools import tool
 from langchain_tavily import TavilySearch
 from langchain_core.documents import Document
+from langsmith import traceable
 from dotenv import load_dotenv
 load_dotenv()
 
 web_search_tool = TavilySearch(max_results=3)
 
 @tool
+@traceable(name="web_search")
 def web_search(query:str)-> str:
     """
     Search the web for relevant information

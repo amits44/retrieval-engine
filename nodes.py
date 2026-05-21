@@ -33,14 +33,14 @@ rag_prompt = ChatPromptTemplate.from_messages([
 rag_chain = rag_prompt | llm | StrOutputParser()
 
 #---------Retrieve Node---------
-
+@traceable(name="retrieval")
 def retrieve_node(state: GraphState):
     question= state["messages"][-1].content
     docs = semantic_search.invoke(question)
     return {"documents": docs}
 
 #------------Grade Document Node-----------
-
+@traceable(name="grade_documents")
 def grade_documents_node(state: GraphState):
     question= state["messages"][-1].content
     filtered_docs =[]
@@ -61,6 +61,7 @@ def grade_documents_node(state: GraphState):
 
 #------------Web Search Node-----------
 
+@traceable(name="web_search")
 def web_search_node(state:GraphState):
     question= state["messages"][-1].content
     web_docs = web_search.invoke(question)
@@ -69,7 +70,7 @@ def web_search_node(state:GraphState):
     return {"documents": combined_docs}
 
 #------------Generation Node-----------
-
+@traceable(name="generation")
 def generate_node(state:GraphState):
     context = "\n\n".join([doc.page_content for doc in state["documents"]])
     trimmed_history = trim_messages(
@@ -85,7 +86,7 @@ def generate_node(state:GraphState):
     }
 
 #------------Hallucination Check Node-----------
-
+@traceable(name="hallucination_check")
 def hallucination_check_node(state: GraphState):
     question = state["messages"][-1].content
     docs_text ="\n\n".join([doc.page_content for doc in state["documents"]])
