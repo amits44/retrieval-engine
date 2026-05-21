@@ -12,10 +12,11 @@ def web_search(query:str)-> str:
     Search the web for relevant information
     """
     result = web_search_tool.invoke({"query": query})
-    if isinstance(results, dict) and "results" in results:
-        results = results["results"]
+
+    if isinstance(result, dict) and "results" in result:
+        results = result["results"]
     else:
-        results = search_output
+        results = result
 
     web_docs = [
         Document(page_content=r["content"])
