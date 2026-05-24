@@ -12,7 +12,7 @@ def get_retriever()-> VectorStoreRetriever:
         raise FileNotFoundError(
             f"'{CHROMA_DIR}/' not found. Run `python ingest.py` first."
         )
-    embeddings = HuggingFaceEmbeddings(model="sentence-transformers/all-MiniLM-L6-v2")
+    embeddings = HuggingFaceEmbeddings(model="BAAI/bge-large-en-v1.5")
 
     vectorstore= Chroma(
         persist_directory= CHROMA_DIR,
