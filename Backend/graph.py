@@ -7,13 +7,11 @@ from nodes import (
     generate_node,
     hallucination_check_node)
 import sqlite3
-from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.checkpoint.sqlite import SqliteSaver
 
-#---------------sqlite checkpointer--------------
 
-memory = InMemorySaver()
+memory = SqliteSaver.from_conn_string("checkpoints.db")
 
-#--------------routing function---------------------
 
 def route_after_grading(state:GraphState):
     if state['web_fallback']:
@@ -25,8 +23,6 @@ def route_after_hallucination_check(state:GraphState):
     if state["hallucination"] and retry_count < 3:
         return "generate"
     return END
-
-#----------------Graph---------------------
 
 workflow = StateGraph(GraphState)
 
